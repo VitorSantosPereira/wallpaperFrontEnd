@@ -1,76 +1,67 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
-const STORAGE_KEY = '@meus_wallpapers';
-const LAST_UPDATE_KEY = '@last_wallpaper_update';
-const LAST_INDEX_KEY = '@last_wallpaper_index';
-
-export const savePhotoToList = async (newPhotoUri) => {
-  try {
-    const currentList = await getSavedPhotos();
-    
-    if (currentList.includes(newPhotoUri)) {
-      return currentList;
-    }
-
-    const updatedList = [...currentList, newPhotoUri];
-    await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(updatedList));
-    return updatedList;
-  } catch (e) {
-    return [];
+export const savePhotoToList = async (uri) => {
+  const existing = await AsyncStorage.getItem('@user_photos');
+  let photos = existing ? JSON.parse(existing) : [];
+  
+  if (!photos.includes(uri)) {
+    photos.push(uri);
+    await AsyncStorage.setItem('@user_photos', JSON.stringify(photos));
+    await AsyncStorage.setItem('@last_index', '0'); 
   }
+  return photos;
 };
 
 export const getSavedPhotos = async () => {
-  try {
-    const jsonValue = await AsyncStorage.getItem(STORAGE_KEY);
-    return jsonValue != null ? JSON.parse(jsonValue) : [];
-  } catch (e) {
-    return [];
-  }
+  const existing = await AsyncStorage.getItem('@user_photos');
+  return existing ? JSON.parse(existing) : [];
 };
 
-export const removePhotoFromList = async (photoUriToRemove) => {
-  try {
-    const currentList = await getSavedPhotos();
-    const updatedList = currentList.filter(uri => uri !== photoUriToRemove);
-    await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(updatedList));
-    return updatedList;
-  } catch (e) {
-    return [];
-  }
+export const removePhotoFromList = async (uri) => {
+  const existing = await AsyncStorage.getItem('@user_photos');
+  let photos = existing ? JSON.parse(existing) : [];
+  const updated = photos.filter(photo => photo !== uri);
+  await AsyncStorage.setItem('@user_photos', JSON.stringify(updated));
+  return updated;
 };
 
-export const checkAndGetNextWallpaper = async (modo = 'aleatorio') => {
-  try {
-    const photos = await getSavedPhotos();
-    if (photos.length === 0) return null;
+const pickPhotoLogic = async (mode, photos) => {
+  if (mode === 'aleatorio') {
+    const randomIndex = Math.floor(Math.random() * photos.length);
+    return photos[randomIndex];
+  } else {
+    const lastIndexStr = await AsyncStorage.getItem('@last_index');
+    let nextIndex = lastIndexStr ? parseInt(lastIndexStr) + 1 : 0;
 
-    const today = new Date().toDateString();
-    const lastUpdate = await AsyncStorage.getItem(LAST_UPDATE_KEY);
-
-     if (lastUpdate === today) {
-       return null;
-     }
-
-    let nextPhotoUri = '';
-
-    if (modo === 'aleatorio') {
-      const randomIndex = Math.floor(Math.random() * photos.length);
-      nextPhotoUri = photos[randomIndex];
-    } else {
-      const lastIndexStr = await AsyncStorage.getItem(LAST_INDEX_KEY);
-      let nextIndex = lastIndexStr ? parseInt(lastIndexStr) + 1 : 0;
-      
-      if (nextIndex >= photos.length) nextIndex = 0;
-      
-      nextPhotoUri = photos[nextIndex];
-      await AsyncStorage.setItem(LAST_INDEX_KEY, nextIndex.toString());
+    if (nextIndex >= photos.length) {
+      nextIndex = 0;
     }
 
-    await AsyncStorage.setItem(LAST_UPDATE_KEY, today);
-    return nextPhotoUri;
+    await AsyncStorage.setItem('@last_index', nextIndex.toString());
+    return photos[nextIndex];
+  }
+};
 
-  } catch (e) {
+export const checkAndGetNextWallpaper = async (mode) => {
+  const today = new Date().toDateString();
+  const lastUpdate = await AsyncStorage.getItem('@last_wallpaper_date');
+
+  if (lastUpdate === today) {
     return null;
   }
+
+  const photos = await getSavedPhotos();
+  if (photos.length === 0) return null;
+
+  const selectedPhoto = await pickPhotoLogic(mode, photos);
+
+  await AsyncStorage.setItem('@last_wallpaper_date', today);
+  
+  return selectedPhoto;
+};
+export const forceNextWallpaper = async (mode) => {
+  const photos = await getSavedPhotos();
+  if (photos.length === 0) return null;
+  const selectedPhoto = await pickPhotoLogic(mode, photos);
+  return selectedPhoto;
 };

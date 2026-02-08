@@ -1,9 +1,12 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, ScrollView } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Alert, Platform, ActivityIndicator } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import ManageWallpaper, { TYPE } from 'react-native-manage-wallpaper';
+import { forceNextWallpaper } from '../services/pastaService';
 
 export default function Automacao() {
   const [modoAtivo, setModoAtivo] = useState('aleatorio');
+  const [loading, setLoading] = useState(false);
 
   useEffect(() => {
     const loadPreference = async () => {
@@ -18,6 +21,39 @@ export default function Automacao() {
     await AsyncStorage.setItem('@config_modo', modo);
   };
 
+  const handleManualChange = async () => {
+    if (Platform.OS === 'web') {
+      alert("A troca de wallpaper não funciona na Web.");
+      return;
+    }
+
+    setLoading(true);
+
+    try {
+      const fotoUri = await forceNextWallpaper(modoAtivo);
+
+      if (!fotoUri) {
+        Alert.alert("Erro", "Você não tem fotos na lista! Adicione fotos primeiro.");
+        setLoading(false);
+        return;
+      }
+
+      console.log("Aplicando wallpaper manualmente:", fotoUri);
+      ManageWallpaper.setWallpaper(
+        { uri: fotoUri },
+        (res) => {
+          setLoading(false);
+          Alert.alert("Sucesso!", `Wallpaper alterado para o modo: ${modoAtivo.toUpperCase()}`);
+        },
+        TYPE.HOME
+      );
+
+    } catch (error) {
+      setLoading(false);
+      Alert.alert("Erro", "Falha ao mudar wallpaper: " + error.message);
+    }
+  };
+
   return (
     <View style={styles.container}>
       <View style={styles.headerSection}>
@@ -26,8 +62,8 @@ export default function Automacao() {
       </View>
 
       <View style={styles.buttonContainer}>
-        <TouchableOpacity
-          style={[styles.button, modoAtivo === 'aleatorio' && styles.activeButton]}
+        <TouchableOpacity 
+          style={[styles.button, modoAtivo === 'aleatorio' && styles.activeButton]} 
           onPress={() => salvarModo('aleatorio')}
         >
           <Text style={[styles.buttonText, modoAtivo === 'aleatorio' && styles.activeText]}>
@@ -35,8 +71,8 @@ export default function Automacao() {
           </Text>
         </TouchableOpacity>
 
-        <TouchableOpacity
-          style={[styles.button, modoAtivo === 'sequencial' && styles.activeButton]}
+        <TouchableOpacity 
+          style={[styles.button, modoAtivo === 'sequencial' && styles.activeButton]} 
           onPress={() => salvarModo('sequencial')}
         >
           <Text style={[styles.buttonText, modoAtivo === 'sequencial' && styles.activeText]}>
@@ -45,17 +81,27 @@ export default function Automacao() {
         </TouchableOpacity>
       </View>
 
+
       <View style={styles.divider} />
 
       <ScrollView style={styles.aboutContainer} showsVerticalScrollIndicator={false}>
         <Text style={styles.aboutTitle}>Sobre Mim & Agradecimentos</Text>
         <Text style={styles.aboutText}>
-          Olá! Este projeto foi desenvolvido para facilitar a personalização do seu dispositivo de forma inteligente.
+          Projeto desenvolvido para controle total do seu wallpaper.
           {"\n\n"}
-          Fiz para colocar uma foto de forma aleatória e outra de forma sequencial, assim todos os dias terá uma foto da pessoa que você ama no papel de parede.
-          {"\n\n"}
-          Desenvolvido com foco em simplicidade e performance.
+          Utilize o botão acima para testar se suas fotos estão trocando corretamente sem precisar esperar o dia virar.
         </Text>
+      {/* Botão de Teste Manual */}
+      <View style={styles.testContainer}>
+        <TouchableOpacity style={styles.testButton} onPress={handleManualChange} disabled={loading}>
+          {loading ? (
+             <ActivityIndicator color="#FFF" />
+          ) : (
+             <Text style={styles.testButtonText}>TESTAR MUDANÇA AGORA</Text>
+          )}
+        </TouchableOpacity>
+        <Text style={styles.testNote}>Isso força a troca imediata baseada no modo acima.</Text>
+      </View>
       </ScrollView>
     </View>
   );
@@ -105,11 +151,36 @@ const styles = StyleSheet.create({
   activeText: {
     color: '#FFF',
   },
+  // Estilos do Botão de Teste
+  testContainer: {
+    marginTop: 25,
+    paddingHorizontal: 25,
+    alignItems: 'center'
+  },
+  testButton: {
+    backgroundColor: '#4A90E2', // Azul para destacar
+    width: '100%',
+    paddingVertical: 15,
+    borderRadius: 12,
+    alignItems: 'center',
+    elevation: 3
+  },
+  testButtonText: {
+    color: '#FFF',
+    fontWeight: 'bold',
+    fontSize: 14
+  },
+  testNote: {
+    fontSize: 12,
+    color: '#999',
+    marginTop: 8,
+    textAlign: 'center'
+  },
   divider: {
     height: 1,
     backgroundColor: '#DDD',
     marginHorizontal: 25,
-    marginVertical: 40,
+    marginVertical: 30,
   },
   aboutContainer: {
     flex: 1,

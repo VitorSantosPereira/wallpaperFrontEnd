@@ -4,7 +4,7 @@ export default function Home({ navigation }) {
   return (
     <View style={styles.container}>
     
-      <Text style={{fontSize: 60,fontWeight: 'bold',marginBottom: 10,color: '#333'}}>FOTO DE FUNDO</Text>
+      <Text style={{fontSize: 45,fontWeight: 'bold',marginBottom: 10,color: '#333'}}>FOTO DE FUNDO</Text>
       <Text style={styles.subtitle}>Escolha uma opção para começar</Text>
 
       <TouchableOpacity 
